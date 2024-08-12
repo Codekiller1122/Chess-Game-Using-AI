@@ -1,4 +1,5 @@
 import random
+import math
 
 # Define the chess pieces and their symbols
 pieces = {
@@ -55,13 +56,13 @@ def make_move(board, move):
     board[end_x][end_y] = board[start_x][start_y]
     board[start_x][start_y] = ' '
 
-# Generate a random move for the AI
-def ai_move(board):
-    valid_moves = []
+# Generate all possible moves for a piece (simplified)
+def generate_moves(board, player):
+    moves = []
     for x in range(8):
         for y in range(8):
             piece = board[x][y]
-            if piece == ' ' or piece.isupper():  # AI only controls lowercase pieces
+            if piece == ' ' or (piece.islower() and player == 'white') or (piece.isupper() and player == 'black'):
                 continue
             for dx in range(-1, 2):
                 for dy in range(-1, 2):
@@ -69,13 +70,62 @@ def ai_move(board):
                         continue
                     nx, ny = x + dx, y + dy
                     if 0 <= nx < 8 and 0 <= ny < 8 and board[nx][ny] == ' ':
-                        valid_moves.append((x, y, nx, ny))
-    
-    if valid_moves:
-        move = random.choice(valid_moves)
-        start_pos = chr(move[1] + ord('a')) + str(8 - move[0])
-        end_pos = chr(move[3] + ord('a')) + str(8 - move[2])
-        return start_pos + end_pos
+                        start_pos = chr(y + ord('a')) + str(8 - x)
+                        end_pos = chr(ny + ord('a')) + str(8 - nx)
+                        moves.append(start_pos + end_pos)
+    return moves
+
+# Evaluate the board (simplified evaluation)
+def evaluate_board(board):
+    piece_values = {'P': 1, 'N': 3, 'B': 3, 'R': 5, 'Q': 9, 'K': 0,
+                    'p': -1, 'n': -3, 'b': -3, 'r': -5, 'q': -9, 'k': 0}
+    value = 0
+    for row in board:
+        for piece in row:
+            value += piece_values.get(piece, 0)
+    return value
+
+# Minimax algorithm with Alpha-Beta Pruning
+def minimax(board, depth, alpha, beta, maximizing_player):
+    if depth == 0:
+        return evaluate_board(board)
+
+    if maximizing_player:
+        max_eval = -math.inf
+        for move in generate_moves(board, 'black'):
+            new_board = [row[:] for row in board]
+            make_move(new_board, move)
+            eval = minimax(new_board, depth - 1, alpha, beta, False)
+            max_eval = max(max_eval, eval)
+            alpha = max(alpha, eval)
+            if beta <= alpha:
+                break
+        return max_eval
+    else:
+        min_eval = math.inf
+        for move in generate_moves(board, 'white'):
+            new_board = [row[:] for row in board]
+            make_move(new_board, move)
+            eval = minimax(new_board, depth - 1, alpha, beta, True)
+            min_eval = min(min_eval, eval)
+            beta = min(beta, eval)
+            if beta <= alpha:
+                break
+        return min_eval
+
+# Choose the best move for the AI using Minimax
+def ai_move(board):
+    best_move = None
+    best_value = -math.inf
+    for move in generate_moves(board, 'black'):
+        new_board = [row[:] for row in board]
+        make_move(new_board, move)
+        move_value = minimax(new_board, 3, -math.inf, math.inf, False)
+        if move_value > best_value:
+            best_value = move_value
+            best_move = move
+    if best_move:
+        return best_move
     return None
 
 def main():
